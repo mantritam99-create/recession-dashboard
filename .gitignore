@@ -1,0 +1,12 @@
+# secrets — NEVER commit (key lives here for local runs only)
+config.local.yaml
+
+# raw API pulls — regenerated on demand
+cache/
+__pycache__/
+*.pyc
+
+# generated output (CI rebuilds these; no need to track)
+output/dashboard.html
+output/index.html
+public/

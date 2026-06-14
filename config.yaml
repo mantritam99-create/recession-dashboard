@@ -1,0 +1,90 @@
+# ======================================================================
+#  recession-dashboard control panel
+#  Everything tunable lives here. No thresholds/weights hardcoded in .py
+# ======================================================================
+
+fred:
+  # Get a free key at https://fredaccount.stlouisfed.org/apikeys
+  # Leave blank to read from the FRED_API_KEY environment variable instead.
+  api_key: ""   # leave blank in the committed file; set in config.local.yaml (gitignored) or FRED_API_KEY env / CI secret
+  start: "1990-01-01"
+
+cache:
+  daily_max_age_h: 12      # daily series: refetch at most twice a day
+  monthly_max_age_h: 720   # monthly/quarterly series: ~30 days
+  market_max_age_h: 12
+
+# --- weights for the 3-bucket composite (must sum to 1.0) ---
+weights:
+  valuation: 0.35
+  macro_stress: 0.40
+  sentiment: 0.25
+
+# --- breadth: an indicator is "in the danger zone" above this stress score ---
+breadth:
+  danger_zone: 75
+
+# --- absolute reference thresholds (used by signals.py trip-wires, NOT by
+#     the percentile scorer, which is purely historical) ---
+thresholds:
+  buffett_indicator: {extreme: 200, high: 150, normal: 100}
+  cape:              {extreme: 35,  high: 28,  normal: 22}
+  yield_curve_3m10y: {inverted: 0.0, warning: 0.5}     # percent; below = stress
+  hy_spread_bp:      {danger: 500, warning: 400}        # ICE BofA HY OAS, bp
+  sahm:              {trigger: 0.50}
+  vix:               {high: 28, extreme: 40}
+
+# --- FRED series: id -> how the model treats it -----------------------
+#  bucket:    valuation | macro_stress | sentiment
+#  direction: 'high' = high readings are stressful (score = percentile)
+#             'low'  = low/negative readings are stressful (score = 100-pctile)
+fred_series:
+  T10Y3M:        {name: "3M-10Y spread",        bucket: macro_stress, direction: low}
+  T10Y2Y:        {name: "2s10s spread",         bucket: macro_stress, direction: low}
+  BAMLH0A0HYM2:  {name: "High-yield OAS",        bucket: macro_stress, direction: high}
+  BAMLC0A0CM:    {name: "IG credit spread",      bucket: macro_stress, direction: high}
+  SAHMREALTIME:  {name: "Sahm Rule",             bucket: macro_stress, direction: high}
+  ICSA:          {name: "Initial jobless claims", bucket: macro_stress, direction: high}
+  CPILFESL:      {name: "Core CPI (YoY calc)",   bucket: macro_stress, direction: high, transform: yoy}
+  DCOILWTICO:    {name: "WTI crude",             bucket: macro_stress, direction: high}
+  DRTSCILM:      {name: "Bank lending standards", bucket: macro_stress, direction: high}
+  DRCCLACBS:     {name: "Credit card delinquency", bucket: macro_stress, direction: high}
+  UMCSENT:       {name: "U.Mich sentiment",      bucket: sentiment,    direction: low}
+  PSAVERT:       {name: "Personal savings rate", bucket: sentiment,    direction: low}
+
+# --- market tickers (Yahoo, keyless) ----------------------------------
+#  role: context | stress | valuation_proxy
+market_tickers:
+  "^GSPC":     {name: "S&P 500",          bucket: context,    direction: high, role: index}
+  "^VIX":      {name: "VIX",              bucket: sentiment,  direction: high}
+  "^TNX":      {name: "10Y yield",        bucket: context,    direction: high}
+  "DX-Y.NYB":  {name: "US Dollar Index",  bucket: context,    direction: high}
+  "NVDA":      {name: "NVIDIA (AI proxy)", bucket: context,   direction: high}
+
+# --- valuation (scraped, keyless) -------------------------------------
+valuation:
+  cape:    {name: "Shiller CAPE", bucket: valuation, direction: high, source: multpl}
+  buffett: {name: "Buffett Indicator", bucket: valuation, direction: high, source: fred_computed}
+
+# --- verdict bands, CALIBRATED by model/backtest.py -------------------
+#  Backtest (1997-2021, no lookahead): composite >=70 caught the 2000 top (18m
+#  lead) and 2007 top (8m lead), correctly MISSED exogenous COVID, and fired in
+#  only 7.5% of benign months. Non-event corrections (2011/15/18) peaked <=60.
+#  So 70 is the warning line; 75+ is acute. Edit here if you re-run the backtest.
+bands:
+  composite:
+    benign:   55     # below = no crisis signal
+    watch:    65     # 55-65 = late-cycle watch
+    warning:  70     # 65-70 = elevated; >=70 = backtested warning zone
+    acute:    80     # >=80 = broad acute stress
+
+# --- trip-wires: the "what would confirm the crash" checklist ---------
+#  Each maps to a live indicator; `trips_when` + `level` define the trigger.
+#  These convert a vague worry into specific, watchable lines.
+tripwires:
+  - {name: "3M-10Y spread",   indicator: "3M-10Y spread",        trips_when: below, level: -0.50, unit: "%",  note: "deep curve inversion"}
+  - {name: "Sahm Rule",       indicator: "Sahm Rule",            trips_when: above, level: 0.50,  unit: "",   note: "recession in progress"}
+  - {name: "HY credit spread", indicator: "High-yield OAS",      trips_when: above, level: 5.00,  unit: "%",  note: "credit stress (500bp)"}
+  - {name: "Jobless claims",  indicator: "Initial jobless claims", trips_when: above, level: 300000, unit: "", note: "labor market cracking"}
+  - {name: "VIX",             indicator: "VIX",                  trips_when: above, level: 28.0,  unit: "",   note: "volatility regime break"}
+  - {name: "Bank standards",  indicator: "Bank lending standards", trips_when: above, level: 20.0, unit: "%", note: "credit crunch tightening"}

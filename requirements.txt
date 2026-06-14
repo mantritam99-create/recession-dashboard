@@ -1,0 +1,3 @@
+pandas>=2.0
+pyyaml>=6.0
+# matplotlib only needed once we build output/dashboard.py
