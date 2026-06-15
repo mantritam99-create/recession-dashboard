@@ -7,7 +7,7 @@ threshold lines, contribution waterfall, bull-case defeaters, movers, and an
 evidence table with inline sparklines, family tags, and 3m deltas.
 Semantic color only: green=resilience/cushion, amber=watch, red=triggered, blue=reference.
 """
-import os, sys, datetime
+import os, sys, json, datetime
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pandas as pd
 from config import CFG, ROOT, has_fred
@@ -16,6 +16,30 @@ from output import verdict
 
 OUT = os.path.join(ROOT, "output", "dashboard.html")
 BANDS = CFG["bands"]["composite"]   # benign55 watch65 warning70 acute80
+
+GLOSSARY = {
+    "Shiller CAPE": "Cyclically-adjusted P/E: price / 10yr average inflation-adjusted earnings.",
+    "Buffett Indicator": "Total US equity market cap / GDP. >100% = richly valued.",
+    "High-yield OAS": "Junk-bond option-adjusted spread over Treasuries; widening = credit stress.",
+    "IG credit spread": "Investment-grade corporate spread over Treasuries.",
+    "Sahm Rule": "Recession trigger: 3m-avg unemployment up >=0.5pp over its prior-12m low.",
+    "3M-10Y spread": "10yr minus 3m Treasury yield; negative (inverted) precedes recessions.",
+    "2s10s spread": "10yr minus 2yr Treasury yield.",
+    "VIX": "Implied 30-day S&P volatility ('fear gauge').",
+    "Core CPI (YoY calc)": "Consumer inflation ex food & energy, year-over-year.",
+    "WTI crude": "US crude oil price; spikes pressure growth.",
+    "Initial jobless claims": "Weekly new unemployment filings; rising = labor cracking.",
+    "Bank lending standards": "Net % of banks tightening C&I loan standards (SLOOS).",
+    "Credit card delinquency": "Share of card balances 90+ days delinquent.",
+    "U.Mich sentiment": "University of Michigan consumer sentiment index.",
+    "Personal savings rate": "Household savings as % of disposable income.",
+    "Margin debt YoY%": "FINRA margin debt growth; high = leverage building.",
+    "NVDA inventory days": "NVIDIA inventory / COGS x 90; rising = demand softening.",
+    "Hyperscaler capex QoQ%": "Big-tech AI capex growth; a cut is the bubble catalyst.",
+    "AI-infra credit spread": "Oracle/CoreWeave bond spreads; AI-buildout financing stress.",
+    "AAII bull-bear spread": "Retail bulls minus bears; high = complacency.",
+    "Insider buy/sell ratio": "Corporate insider buys vs sells; low = insiders selling.",
+}
 
 
 # ---------- semantic color ----------
@@ -129,6 +153,16 @@ def build():
     contrib = analytics.contributions(c)
     traj = analytics.composite_series(loaded)
     by = {r["name"]: r for r in rows}
+    # CP2 analytics — each guarded so one failure can't blank the page
+    def _safe(fn, default):
+        try: return fn()
+        except Exception as e: print("  [dashboard] component failed:", e); return default
+    regime = _safe(lambda: analytics.regime(rows, c, tr), "n/a")
+    probs = _safe(lambda: analytics.probabilities(loaded), {})
+    fwd = _safe(lambda: analytics.forward_returns(loaded), [])
+    anlg = _safe(lambda: analytics.analogs(loaded), [])
+    scen = _safe(lambda: analytics.scenario_results(rows, c), [])
+    confd = _safe(lambda: analytics.confidence_decomposition(rows), [])
 
     comp = c["composite"]
     zlab, zcol = zone_of(comp)
@@ -157,6 +191,7 @@ def build():
         <div class="heronum" style="color:{zcol}">{comp:.0f}<span class="zlab" style="background:{zcol}">{zlab}</span></div>
         {_ladder(comp)}
         <div class="stancerow"><span class="chip big" style="border-color:{zcol};color:{zcol}">{a["label"]}</span>
+          <span class="chip">regime: {regime}</span>
           {arrow(d3)} <span class="muted small">3m {("+" if (d3 or 0)>=0 else "")}{d3:.1f}</span></div>
         <div class="interp">{a["stance"]} &mdash; conviction <b>{c["confidence"]:.0f}/100</b> &plusmn;{c["margin"]:.0f},
           breadth {c["breadth"]:.2f} ({a["tripped"]}/6 tripwires armed).</div>
@@ -190,6 +225,11 @@ def build():
         P.append(_gauge_html(tw, cur, g))
     P.append('</div><div class="muted small">green = far from trigger (cushion) &middot; amber = closing in &middot; red = tripped</div></div>')
 
+    # ---- intelligence row: probabilities + forward returns + analogs ----
+    P.append(f'<div class="cols3">{_prob_panel(probs)}{_fwd_table(fwd, probs.get("bucket"))}{_analogs(anlg)}</div>')
+    # ---- scenario engine + confidence decomposition ----
+    P.append(f'<div class="cols2">{_scenarios(scen)}{_confidence(confd)}</div>')
+
     # ---- defeaters + movers ----
     mv = sorted(deltas.items(), key=lambda kv: kv[1])
     risers = "".join(f'<li>{arrow(d)} {n}</li>' for n, d in reversed(mv) if d > 1)[:600] or "<li class='muted'>none</li>"
@@ -210,7 +250,8 @@ def build():
              'calm/stress anchor (manual). Bands from model/backtest.py. Use the trip-wire gauges, not valuation alone, '
              'as the action signal. Rebuilt daily via GitHub Actions.</footer>')
 
-    html = _HEAD + "<style>" + _CSS + "</style></head><body><div class='wrap'>" + "".join(P) + "</div></body></html>"
+    html = (_HEAD + "<style>" + _CSS + "</style></head><body><div class='wrap'>"
+            + "".join(P) + "</div>" + _JS + "</body></html>")
     with open(OUT, "w", encoding="utf-8") as f:
         f.write(html)
     return OUT
@@ -266,24 +307,85 @@ def _gauge_html(tw, cur, g):
     </div>'''
 
 
+def _prob_panel(p):
+    if not p or not p.get("n"):
+        return '<div class="card"><h3>Probability &middot; next 12m</h3><div class="muted small">insufficient history</div></div>'
+    items = [("Recession starts", p["recession"], "red"), ("Drawdown &gt;20%", p["drawdown20"], "red"),
+             ("Credit event (HY&gt;5%)", p["credit_proxy"], "amber"), ("Soft landing", p["soft_landing"], "green")]
+    body = "".join(f'<div class="prow"><span>{lab}</span>'
+                   f'<span class="pval {col}">{(str(v)+"%") if v is not None else "n/a"}</span></div>'
+                   for lab, v, col in items)
+    return (f'<div class="card"><h3>Probability &middot; next 12m</h3>{body}'
+            f'<div class="muted small">empirical base rate when composite in <b>{p["bucket"]}</b> '
+            f'(n={p["n"]} mo). Credit/soft-landing are stated proxies, not measured.</div></div>')
+
+
+def _fwd_table(fwd, cur):
+    if not fwd:
+        return '<div class="card"><h3>Fwd 12m S&amp;P</h3><div class="muted small">n/a</div></div>'
+    body = ""
+    for x in fwd:
+        hl = ' class="curbucket"' if x["bucket"] == cur else ''
+        avg = f'{x["avg"]:+.1f}%' if x["avg"] is not None else "n/a"
+        col = "green" if (x["avg"] or 0) > 5 else ("amber" if (x["avg"] or 0) > 0 else "red")
+        body += f'<tr{hl}><td>{x["bucket"]}</td><td class="pval {col}">{avg}</td><td class="muted num">{x["n"]}</td></tr>'
+    return (f'<div class="card"><h3>Fwd 12m S&amp;P by bucket</h3>'
+            f'<table class="mini"><thead><tr><th>Composite</th><th>Avg fwd</th><th>n</th></tr></thead>{body}</table>'
+            f'<div class="muted small">historical realized return; current bucket boxed.</div></div>')
+
+
+def _analogs(a):
+    if not a:
+        return '<div class="card"><h3>Historical analogs</h3><div class="muted small">n/a</div></div>'
+    body = "".join(f'<div class="prow"><span>{x["year"]} <span class="muted small">{x["date"][:7]}</span></span>'
+                   f'<span class="pval">{x["sim"]}%</span></div>' for x in a)
+    return (f'<div class="card"><h3>Most-similar setups</h3>{body}'
+            f'<div class="muted small">cosine similarity on the stress vector (long-history indicators).</div></div>')
+
+
+def _scenarios(scen):
+    if not scen:
+        return '<div class="card"><h3>Scenario engine</h3><div class="muted small">n/a</div></div>'
+    base = scen[0]["composite"]
+    btns = "".join(f'<button class="scbtn" data-i="{i}">{s["name"]}</button>' for i, s in enumerate(scen))
+    return (f'<div class="card"><h3>Scenario engine <span class="muted small">(illustrative re-score)</span></h3>'
+            f'<div class="scbtns">{btns}</div>'
+            f'<div id="scres" class="scres muted small">Tap a scenario to re-score the composite.</div>'
+            f'<script>window.__SCEN__={json.dumps(scen)};window.__BASE__={base};</script></div>')
+
+
+def _confidence(cd):
+    if not cd:
+        return '<div class="card"><h3>Confidence by source</h3><div class="muted small">n/a</div></div>'
+    body = "".join(f'<div class="prow"><span>{x["source"]} <span class="muted small">&times;{x["n"]}</span></span>'
+                   f'<span class="pval">{x["confidence"]}%</span></div>' for x in cd)
+    return (f'<div class="card"><h3>Confidence by source <span class="muted small">(assigned)</span></h3>{body}'
+            f'<div class="muted small">data-quality weights, not statistical CIs &mdash; AI/manual layer lowest.</div></div>')
+
+
 def _table(rows, deltas, sparks):
-    head = ('<div class="card"><h3>Evidence &middot; all indicators</h3>'
-            '<div class="tblwrap"><table><tr><th>Indicator</th><th>Family</th><th>Current</th>'
-            '<th>Stress</th><th>18m</th><th>3m&Delta;</th><th>Vintage</th><th>Src</th></tr>')
+    fams = ["all", "valuation", "macro", "credit", "labor", "liquidity", "sentiment"]
+    chips = "".join(f'<span class="famchip{" on" if f=="all" else ""}" data-fam="{f}">{f}</span>' for f in fams)
+    head = (f'<div class="card"><h3>Evidence &middot; all indicators <span class="muted small">(filter / sort)</span></h3>'
+            f'<div class="famfilter">{chips}</div>'
+            f'<div class="tblwrap"><table id="evtbl"><thead><tr><th>Indicator</th><th>Family</th><th>Current</th>'
+            f'<th data-sort="stress">Stress &#8645;</th><th>18m</th><th data-sort="delta">3m&Delta; &#8645;</th>'
+            f'<th>Vintage</th><th>Src</th></tr></thead><tbody>')
     body = ""
     for r in sorted(rows, key=lambda r: (not r["ok"], -(r["score"] or 0))):
         if not r["ok"]: continue
-        s = r["score"]; fam = analytics.family_of(r["name"])
-        d = deltas.get(r["name"])
+        s = r["score"]; fam = analytics.family_of(r["name"]); d = deltas.get(r["name"])
         sp = _spark_svg(sparks[r["name"]]) if r["name"] in sparks else '<span class="muted">&mdash;</span>'
         src = '<span class="chip manual">man</span>' if r["source"] == "manual" else '<span class="chip">live</span>'
         stale = ' <span class="chip red">stale</span>' if r.get("stale") else ''
         bar = f'<div class="bar"><span style="width:{s:.0f}%;background:{scol(s)}"></span></div>'
-        body += (f'<tr data-fam="{fam}" data-stress="{s:.0f}"><td>{r["name"]}{stale}</td>'
+        tip = GLOSSARY.get(r["name"], "")
+        body += (f'<tr data-fam="{fam}" data-stress="{s:.0f}" data-delta="{(d if d is not None else -999):.0f}">'
+                 f'<td class="tip" title="{tip}">{r["name"]}{stale}</td>'
                  f'<td><span class="fam">{fam}</span></td><td class="num">{fmt(r["current"])}</td>'
                  f'<td>{bar}<span class="snum">{s:.0f}</span></td><td>{sp}</td><td>{arrow(d)}</td>'
                  f'<td class="muted small">{r.get("asof") or "&mdash;"}</td><td>{src}</td></tr>')
-    return head + body + "</table></div></div>"
+    return head + body + "</tbody></table></div></div>"
 
 
 _HEAD = ('<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
@@ -351,11 +453,63 @@ th{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5p
 .spark{vertical-align:middle}
 .fam{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
 footer{color:var(--muted);font-size:10.5px;line-height:1.5;margin-top:8px}
+.cols3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.prow{display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #18222f;font-size:12px}
+.prow:last-child{border-bottom:none}
+.pval{font-weight:700;font-variant-numeric:tabular-nums}
+.pval.green{color:var(--green)}.pval.amber{color:var(--amber)}.pval.red{color:var(--red)}
+table.mini{width:100%;border-collapse:collapse;font-size:12px}
+table.mini td,table.mini th{padding:4px 6px;border-bottom:1px solid #18222f;text-align:left}
+table.mini th{color:var(--muted);font-size:10px;text-transform:uppercase}
+tr.curbucket{background:rgba(91,157,255,.12);outline:1px solid var(--blue)}
+.scbtns{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.scbtn{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:11px;cursor:pointer}
+.scbtn:hover{border-color:var(--blue)}.scbtn.on{background:var(--blue);color:#06101f;border-color:var(--blue)}
+.scres{padding:8px;background:var(--panel2);border-radius:7px;min-height:18px;font-size:12px}
+.famfilter{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px}
+.famchip{font-size:10.5px;padding:2px 8px;border:1px solid var(--line);border-radius:6px;color:var(--muted);cursor:pointer;text-transform:capitalize}
+.famchip:hover{border-color:var(--blue)}.famchip.on{background:var(--blue);color:#06101f;border-color:var(--blue)}
+th[data-sort]{cursor:pointer;user-select:none}
+.tip{border-bottom:1px dotted #3a4a5e;cursor:help}
 @media(max-width:820px){
-  .hero{grid-template-columns:1fr}.gauges{grid-template-columns:1fr}.cols2{grid-template-columns:1fr}
+  .hero,.gauges,.cols2,.cols3{grid-template-columns:1fr}
   .heronum{font-size:52px}
 }
 """
+
+_JS = """<script>
+(function(){  // scenario engine
+  var data=window.__SCEN__||[], base=window.__BASE__||0, res=document.getElementById('scres');
+  document.querySelectorAll('.scbtn').forEach(function(b){
+    b.addEventListener('click',function(){
+      document.querySelectorAll('.scbtn').forEach(function(x){x.classList.remove('on');}); b.classList.add('on');
+      var s=data[+b.dataset.i]; if(!s){return;} var d=s.composite-base;
+      var col=d>0.5?'var(--red)':(d<-0.5?'var(--green)':'var(--muted)');
+      res.innerHTML='<b>'+s.name+'</b> &rarr; composite <b style="color:'+col+'">'+s.composite.toFixed(1)+'</b> '
+        +'<span style="color:'+col+'">('+(d>=0?'+':'')+d.toFixed(1)+' vs current '+base.toFixed(1)+')</span>'
+        +' &middot; conviction '+Math.round(s.confidence);
+    });
+  });
+})();
+(function(){  // evidence table: family filter + column sort
+  var tbl=document.getElementById('evtbl'); if(!tbl){return;}
+  var tb=tbl.querySelector('tbody'), rows=Array.prototype.slice.call(tb.querySelectorAll('tr'));
+  document.querySelectorAll('.famchip').forEach(function(ch){
+    ch.addEventListener('click',function(){
+      document.querySelectorAll('.famchip').forEach(function(x){x.classList.remove('on');}); ch.classList.add('on');
+      var f=ch.dataset.fam;
+      rows.forEach(function(r){r.style.display=(f==='all'||r.dataset.fam===f)?'':'none';});
+    });
+  });
+  document.querySelectorAll('th[data-sort]').forEach(function(th){
+    th.addEventListener('click',function(){
+      var k=th.dataset.sort;
+      rows.sort(function(a,b){return (parseFloat(b.dataset[k])||-999)-(parseFloat(a.dataset[k])||-999);});
+      rows.forEach(function(r){tb.appendChild(r);});
+    });
+  });
+})();
+</script>"""
 
 if __name__ == "__main__":
     print("wrote", build())
