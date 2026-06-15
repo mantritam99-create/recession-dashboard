@@ -81,10 +81,11 @@ bands:
 # --- trip-wires: the "what would confirm the crash" checklist ---------
 #  Each maps to a live indicator; `trips_when` + `level` define the trigger.
 #  These convert a vague worry into specific, watchable lines.
+#  floor = the "all-clear" baseline; gauge fill % = distance from floor toward trigger.
 tripwires:
-  - {name: "3M-10Y spread",   indicator: "3M-10Y spread",        trips_when: below, level: -0.50, unit: "%",  note: "deep curve inversion"}
-  - {name: "Sahm Rule",       indicator: "Sahm Rule",            trips_when: above, level: 0.50,  unit: "",   note: "recession in progress"}
-  - {name: "HY credit spread", indicator: "High-yield OAS",      trips_when: above, level: 5.00,  unit: "%",  note: "credit stress (500bp)"}
-  - {name: "Jobless claims",  indicator: "Initial jobless claims", trips_when: above, level: 300000, unit: "", note: "labor market cracking"}
-  - {name: "VIX",             indicator: "VIX",                  trips_when: above, level: 28.0,  unit: "",   note: "volatility regime break"}
-  - {name: "Bank standards",  indicator: "Bank lending standards", trips_when: above, level: 20.0, unit: "%", note: "credit crunch tightening"}
+  - {name: "3M-10Y spread",    indicator: "3M-10Y spread",          trips_when: below, level: -0.50, floor: 3.0,     unit: "%", note: "deep curve inversion"}
+  - {name: "Sahm Rule",        indicator: "Sahm Rule",              trips_when: above, level: 0.50,  floor: 0.0,     unit: "",  note: "recession in progress"}
+  - {name: "HY credit spread", indicator: "High-yield OAS",         trips_when: above, level: 5.00,  floor: 2.0,     unit: "%", note: "credit stress (500bp)"}
+  - {name: "Jobless claims",   indicator: "Initial jobless claims", trips_when: above, level: 300000, floor: 200000, unit: "",  note: "labor market cracking"}
+  - {name: "VIX",              indicator: "VIX",                    trips_when: above, level: 28.0,  floor: 12.0,    unit: "",  note: "volatility regime break"}
+  - {name: "Bank standards",   indicator: "Bank lending standards", trips_when: above, level: 20.0,  floor: 0.0,     unit: "%", note: "credit crunch tightening"}

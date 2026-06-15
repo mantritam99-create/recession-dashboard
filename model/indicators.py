@@ -85,10 +85,11 @@ def compute(loaded=None) -> list[dict]:
     for spec, s in loaded:
         cur = _last(s)
         score = percentile_score(cur, s, spec["direction"])
+        asof = s.index.max().date().isoformat() if (s is not None and len(s)) else None
         rows.append({
             "name": spec["name"], "bucket": spec["bucket"], "direction": spec["direction"],
             "current": cur, "score": score, "n": (len(s) if s is not None else 0),
-            "ok": score is not None, "source": "live", "stale": False,
+            "ok": score is not None, "source": "live", "stale": False, "asof": asof,
         })
     # AI-bubble + manual sentiment layer (scored by calm/stress anchors, not percentile)
     for m in fetch_manual.load():
@@ -96,6 +97,7 @@ def compute(loaded=None) -> list[dict]:
             "name": m["name"], "bucket": m["bucket"], "direction": "high",
             "current": m["value"], "score": m["score"], "n": 1,
             "ok": True, "source": "manual", "stale": m["stale"],
+            "asof": m["date"].isoformat() if m.get("date") else None,
         })
     return rows
 
