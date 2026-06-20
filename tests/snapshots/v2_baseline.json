@@ -1,0 +1,78 @@
+{
+  "live": {
+    "composite": 69.0,
+    "buckets": {
+      "valuation": 98.2,
+      "macro_labor": 61.7,
+      "credit": 28.1,
+      "sentiment": 70.8
+    },
+    "tripped": 0,
+    "tripwires": {
+      "3M-10Y spread": {
+        "armed": false,
+        "value": 0.7
+      },
+      "Sahm Rule": {
+        "armed": false,
+        "value": 0.1
+      },
+      "HY credit spread": {
+        "armed": false,
+        "value": 2.78
+      },
+      "Jobless claims": {
+        "armed": false,
+        "value": 229000.0
+      },
+      "VIX": {
+        "armed": false,
+        "value": 16.780000686645508
+      },
+      "Bank standards": {
+        "armed": false,
+        "value": 8.1
+      }
+    },
+    "prob_bucket": "70+",
+    "prob_recession": 10
+  },
+  "asof": {
+    "dotcom_2000_03": {
+      "composite": 67.52230229883385,
+      "buckets": {
+        "valuation": 98.65145554681354,
+        "macro_labor": 50.85167426938799,
+        "credit": 54.96621621621622,
+        "sentiment": 62.2750899640144
+      }
+    },
+    "gfc_2007_10": {
+      "composite": 71.6814960690774,
+      "buckets": {
+        "valuation": 86.39041235019297,
+        "macro_labor": 60.67194370663772,
+        "credit": 64.5608947804474,
+        "sentiment": 78.7430710953154
+      }
+    },
+    "covid_2020_03": {
+      "composite": 62.77612374472439,
+      "buckets": {
+        "valuation": 80.77127291195347,
+        "macro_labor": 62.91964031782951,
+        "credit": 38.215811965811966,
+        "sentiment": 50.963426327564946
+      }
+    },
+    "stretched_2024_12": {
+      "composite": 69.27795090010652,
+      "buckets": {
+        "valuation": 97.78637172248435,
+        "macro_labor": 64.05036114785874,
+        "credit": 25.83767355244291,
+        "sentiment": 69.64162594234193
+      }
+    }
+  }
+}

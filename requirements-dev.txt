@@ -1,0 +1,4 @@
+# Dev/test dependencies (not needed for the live dashboard build).
+# Install: py -m pip install -r requirements-dev.txt
+pytest>=8.0
+# sklearn is added here only if/when Phase 4 (PCA factor layer) is approved.
