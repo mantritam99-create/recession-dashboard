@@ -50,6 +50,21 @@ def load_all():
     return [(spec, _load(spec)) for spec in _specs()]
 
 
+def load_raw_data() -> dict:
+    """Raw series keyed by id (FRED code / ticker / 'cape' / 'buffett') for the V3
+    feature registry (features.compute_features). Returns TRULY raw levels — no yoy
+    transform applied here (the registry owns transforms), and includes context
+    tickers (^GSPC/^TNX/DX-Y.NYB/NVDA) that are excluded from the scored composite."""
+    out = {}
+    for sid in CFG["fred_series"]:
+        out[sid] = fetch_fred.series(sid)            # raw level (CPI stays an index; registry does yoy)
+    for tkr in CFG["market_tickers"]:
+        out[tkr] = fetch_market.history(tkr)
+    out["cape"] = fetch_valuation.cape_history()
+    out["buffett"] = fetch_valuation.buffett_history()
+    return out
+
+
 def _specs():
     specs = []
     for sid, m in CFG["fred_series"].items():

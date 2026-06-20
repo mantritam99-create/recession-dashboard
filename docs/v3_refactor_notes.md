@@ -93,3 +93,27 @@ buckets. Strict on discrete fields, EPS=0.5 on floats (absorbs data-revision noi
 **Validation:** `py -m pytest` → 3 passed (baseline + 2 PIT). **Baseline snapshot GREEN — current-date
 composite/bucket/tripwires/probs UNCHANGED.** No historical fixture deltas (no scoring math changed; PIT was
 already correct). Dashboard builds clean.
+
+---
+
+## Phase 2 — feature registry MVP (DONE)
+
+**Files touched:** `features.py` (new), `model/indicators.py` (+`load_raw_data`), `tests/test_features.py` (new).
+
+- `FeatureDef` + `FEATURE_REGISTRY` = **31 features** from existing indicators only, via `stats_utils`
+  (causal). Per family: growth 5, labor 4, inflation 3, **credit 7**, liquidity 4, valuation 4, sentiment 4.
+- Discipline applied: trending series (CPI, WTI, SPX, NVDA, DXY) use YoY (stationary), not level z-scores;
+  2s10s kept level-only (skip its z — correlated with 3m10y); claims uses yoy not 4w/13w MA. Comments note skips.
+- `compute_features(raw_data, mode, freq)` resamples each raw series to month-END (Phase 0 convention),
+  `ffill(limit=3)` to carry quarterly series (bank standards, cc delinq, Buffett) across intra-quarter gaps,
+  then applies transforms. Defaults to FULL mode (live); `su.PIT` available for causal use.
+- `indicators.load_raw_data()` returns raw levels keyed by FRED code/ticker/'cape'/'buffett' (includes
+  context tickers ^GSPC/^TNX/DX/NVDA). NO yoy pre-applied — registry owns transforms.
+- **NOT wired into the composite** — side-by-side/inspectable only.
+
+**Validation:** `py -m pytest` → 5 passed; baseline still GREEN. `py features.py` → 31/31 computed.
+
+**Realism note for the Phase 3 gate:** the panel index spans 1881–2026 (CAPE's long history); restrict to a
+common post-1990 window for PCA. Family raw-series breadth is the real constraint: **credit (4 raw series)
+is the only family deep enough for meaningful PCA**; growth/labor/inflation/valuation are 1–2 raw series
+each (PC1 ≈ the series). This is the evidence that will shape the Phase 3 recommendation on factors/HMM.
