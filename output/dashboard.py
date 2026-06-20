@@ -415,7 +415,8 @@ def _prob_panel(p):
                    for lab, v, col in items)
     return (f'<div class="card"><h3>Probability &middot; next 12m</h3>{body}'
             f'<div class="muted small">empirical base rate when composite in <b>{p["bucket"]}</b> '
-            f'(n={p["n"]} mo). Credit/soft-landing are stated proxies, not measured.</div></div>')
+            f'(n={p["n"]} mo across <b>{p.get("n_episodes", "?")}</b> independent episodes). '
+            f'{p.get("note", "")} Credit/soft-landing are stated proxies, not measured.</div></div>')
 
 
 def _fwd_table(fwd, cur):
@@ -469,7 +470,8 @@ def _confidence(cd):
     body = "".join(f'<div class="prow"><span>{x["source"]} <span class="muted small">&times;{x["n"]}</span></span>'
                    f'<span class="pval">{x["confidence"]}%</span></div>' for x in cd)
     return (f'<div class="card"><h3>Confidence by source <span class="muted small">(assigned)</span></h3>{body}'
-            f'<div class="muted small">data-quality weights, not statistical CIs &mdash; AI/manual layer lowest.</div></div>')
+            f'<div class="muted small">data-quality weights, not statistical CIs &mdash; AI/manual layer lowest. '
+            f'<b>Informational only &mdash; not applied to composite math.</b></div></div>')
 
 
 def _table(rows, deltas, sparks):

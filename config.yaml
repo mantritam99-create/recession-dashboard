@@ -34,6 +34,18 @@ breadth:
 staleness:
   stale_weight: 0.4
 
+# --- data revisions policy (V3 Phase 1, documentation only — not yet enforced) ---
+#  Several FRED series are restated after first release (SAHMREALTIME is the
+#  real-time vintage and is safe; UNRATE-derived Sahm, ICSA, CPI, and the Buffett
+#  Indicator inputs get revised). The backtest fetches latest-vintage data and
+#  treats it as available at the as-of date, which is mildly optimistic for those
+#  series. We do NOT build a vintage database; conservative reading is to lag any
+#  revised monthly series ~1 release (about 1 month) when interpreting tight
+#  historical lead-times. SAHMREALTIME is already point-in-time by construction.
+revisions_policy:
+  enforced: false
+  note: "latest-vintage used as-of; treat revised monthly series as ~1 release optimistic"
+
 # --- absolute reference thresholds (used by signals.py trip-wires, NOT by
 #     the percentile scorer, which is purely historical) ---
 thresholds:

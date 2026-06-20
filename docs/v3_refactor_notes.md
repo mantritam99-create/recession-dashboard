@@ -66,3 +66,30 @@ buckets. Strict on discrete fields, EPS=0.5 on floats (absorbs data-revision noi
 - Factor families are thin (~15 raw series); PCA value is questionable for growth/labor/inflation — to be
   judged at the Phase 3 STOP gate.
 - sklearn/hmmlearn install on Python 3.14 not yet verified (Phase 4 concern).
+
+---
+
+## Phase 1 — correctness/honesty fixes (DONE)
+
+**Files touched:** `stats_utils.py` (new), `tests/test_pit.py` (new), `model/analytics.py`,
+`output/dashboard.py`, `config.yaml`.
+
+1. **PIT — assert, not repair.** Phase 0 confirmed `percentile_asof` is causal. Added `tests/test_pit.py`:
+   appending future data must not change a past as-of score (passes). Also locks `stats_utils.rolling_zscore`
+   PIT mode against look-ahead.
+2. **Shared causal helper `stats_utils.py`** — `Mode(point_in_time)`, `PIT`/`FULL`, `rolling_zscore`
+   (PIT=trailing rolling, FULL=global), `pct_change_yoy` (frequency-agnostic, year-ago via reindex+ffill,
+   inherently causal), `standardize_features` (PIT=expanding, FULL=global). `__main__` demo asserts.
+   **Every later phase MUST use these** — no reimplementation.
+3. **Probability honesty (additive, values unchanged).** `analytics.probabilities` now returns `note`
+   (conditional historical frequencies, not calibrated predictions, can co-occur) + `n_episodes`
+   (contiguous same-bucket runs). Dashboard `_prob_panel` shows "n=… mo across N independent episodes" +
+   the note. Probability VALUES are unchanged.
+4. **Confidence-by-source** labeled "Informational only — not applied to composite math" in
+   `_confidence` panel (it never was load-bearing; no re-wiring).
+5. **`revisions_policy`** documentation block added to `config.yaml` (enforced:false) — latest-vintage is
+   used as-of; treat revised monthly series as ~1 release optimistic. No vintage DB built.
+
+**Validation:** `py -m pytest` → 3 passed (baseline + 2 PIT). **Baseline snapshot GREEN — current-date
+composite/bucket/tripwires/probs UNCHANGED.** No historical fixture deltas (no scoring math changed; PIT was
+already correct). Dashboard builds clean.

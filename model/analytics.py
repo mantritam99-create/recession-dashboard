@@ -238,10 +238,25 @@ def probabilities(loaded=None, start="1999-01-01") -> dict:
             hw = hy[(hy.index > d0) & (hy.index <= d1)]
             if len(hw) and hw.max() >= 5.0:
                 cred += 1
+    # effective EPISODES: contiguous runs in cur_bucket, not N correlated months.
+    # n=83 overlapping months may be only a handful of independent episodes.
+    episodes, prev_in = 0, False
+    for _, v in comp:
+        in_b = v is not None and _bucket_of(v) == cur_bucket
+        if in_b and not prev_in:
+            episodes += 1
+        prev_in = in_b
     pct = lambda x: round(x / n * 100) if n else None
     soft = round((1 - rec / n) * 100) if n else None  # no recession start in next 12m
-    return {"bucket": cur_bucket, "n": n, "recession": pct(rec), "drawdown20": pct(dd),
-            "credit_proxy": pct(cred), "soft_landing": soft}
+    return {"bucket": cur_bucket, "n": n, "n_episodes": episodes,
+            "recession": pct(rec), "drawdown20": pct(dd),
+            "credit_proxy": pct(cred), "soft_landing": soft,
+            # Phase 1: these are historical frequencies conditional on the current bucket,
+            # NOT calibrated predictive probabilities, and they can co-occur (a recession
+            # can come WITH a >20% drawdown). The model covers composite stress / base rates,
+            # not portfolio P&L or a joint asset distribution.
+            "note": ("Historical frequencies conditional on the current composite bucket — not "
+                     "calibrated predictions; outcomes can co-occur.")}
 
 
 def _cosine(a, b):
