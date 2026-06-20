@@ -358,6 +358,72 @@ def confidence_decomposition(rows) -> list:
                   key=lambda x: x["confidence"])
 
 
+# ===========================================================================
+#  MARKOV TRANSITION MATRIX (V3 Phase 3) — "where next?" without an HMM.
+#  Buckets use the v2 DISPLAY bands (same as zone_of / the trajectory), NOT the
+#  stale COMP_BUCKETS above (55/65/70) which the probability panel locked — those
+#  are left untouched on purpose (noted in docs/v3_refactor_notes.md).
+# ===========================================================================
+REGIME_BUCKETS = [(-1e9, 50.0, "Normal"), (50.0, 65.0, "Elevated"),
+                  (65.0, 72.0, "Warning"), (72.0, 1e9, "Extreme")]
+REGIME_LABELS = [b[2] for b in REGIME_BUCKETS]
+
+
+def regime_bucket(comp) -> int | None:
+    if comp is None:
+        return None
+    for i, (lo, hi, _) in enumerate(REGIME_BUCKETS):
+        if lo <= comp < hi:
+            return i
+    return None
+
+
+def bucket_series_monthly(loaded=None, start="1999-01-01") -> pd.Series:
+    """Monthly integer regime-bucket labels from the causal composite history."""
+    loaded = indicators.load_all() if loaded is None else loaded
+    comp = composite_series(loaded, start)  # [(date, composite)], month-end, no-lookahead
+    s = pd.Series({pd.Timestamp(d): regime_bucket(v) for d, v in comp if regime_bucket(v) is not None})
+    return s.sort_index().astype(int)
+
+
+def transition_counts(bucket_series: pd.Series, horizon: int, n_states: int = 4) -> pd.DataFrame:
+    """Raw from->to counts at k steps ahead (for n<10 caveats in the report)."""
+    b = bucket_series.values
+    M = np.zeros((n_states, n_states))
+    for t in range(len(b) - horizon):
+        M[b[t], b[t + horizon]] += 1
+    return pd.DataFrame(M.astype(int), index=REGIME_LABELS, columns=REGIME_LABELS)
+
+
+def compute_transition_matrix(bucket_series: pd.Series, horizons=(1, 3, 6),
+                              n_states: int = 4, alpha: float = 0.5) -> dict:
+    """horizon -> row-normalized, Laplace-smoothed transition DataFrame (from x to).
+
+    bucket_series: monthly integer labels (use bucket_series_monthly, which applies
+    the month-end convention). Laplace alpha avoids zero cells on thin history.
+    """
+    out = {}
+    for k in horizons:
+        M = transition_counts(bucket_series, k, n_states).values.astype(float) + alpha
+        M = M / M.sum(axis=1, keepdims=True)
+        out[k] = pd.DataFrame(M, index=REGIME_LABELS, columns=REGIME_LABELS)
+    return out
+
+
+def transition_summary(bucket_series: pd.Series, mats: dict) -> dict:
+    """Current bucket + plain-language stay/improve/worsen split per horizon (for the panel)."""
+    cur = int(bucket_series.iloc[-1])
+    out = {"current": REGIME_LABELS[cur], "current_idx": cur, "horizons": {}}
+    for k, df in mats.items():
+        row = df.iloc[cur]
+        out["horizons"][k] = {
+            "stay": round(row.iloc[cur] * 100),
+            "improve": round(sum(row.iloc[j] for j in range(cur)) * 100),
+            "worsen": round(sum(row.iloc[j] for j in range(cur + 1, len(row))) * 100),
+        }
+    return out
+
+
 if __name__ == "__main__":
     loaded = indicators.load_all()
     rows = indicators.compute(loaded)

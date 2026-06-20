@@ -117,3 +117,27 @@ already correct). Dashboard builds clean.
 common post-1990 window for PCA. Family raw-series breadth is the real constraint: **credit (4 raw series)
 is the only family deep enough for meaningful PCA**; growth/labor/inflation/valuation are 1–2 raw series
 each (PC1 ≈ the series). This is the evidence that will shape the Phase 3 recommendation on factors/HMM.
+
+---
+
+## Phase 3 — Markov transition matrix + STOP (DONE; awaiting go-ahead for Phase 4+)
+
+**Files touched:** `model/analytics.py` (+REGIME_BUCKETS, regime_bucket, bucket_series_monthly,
+transition_counts, compute_transition_matrix, transition_summary), `output/dashboard.py`
+(+`_transition_panel`, wired under the trajectory), `docs/PHASE_3_REPORT.md` (new — the STOP evidence report).
+
+- Buckets = v2 display bands (Normal<50 / Elevated 50-65 / Warning 65-72 / Extreme ≥72). NOTE: left the
+  stale `analytics.COMP_BUCKETS` (55/65/70, used by the probability panel + locked in the baseline) UNTOUCHED
+  per "don't tidy unrelated code" — flagged here as a known inconsistency for a future cleanup.
+- 330 monthly obs (1999-2026), Laplace-smoothed, row-normalized; dashboard shows the current bucket's
+  3m/6m stay/ease/worsen split. `py -m pytest` → 5 passed; baseline GREEN.
+
+**Key findings (full report: docs/PHASE_3_REPORT.md):** persistence is a strong real signal (diagonals far
+above base rate); the current **Warning** row is genuinely useful (6m: 44% stay / 28% worsen / 28% ease);
+but stress buckets are episode-dominated (~4 Extreme episodes) so fine-grained forecasting is noisy.
+
+**RECOMMENDATION: do NOT proceed to PCA/HMM (Phase 4) as specced** — factor families are too thin (only
+credit has depth; PC1 ≈ the series elsewhere), and an HMM on ~4 stress episodes would overfit (plus
+hmmlearn on py3.14 unverified). Cheaper higher-value step: a *conditional* transition matrix (split the
+Warning row by credit-calm/stressed or tripwire count). Phases 5–6 (snapshot/daily-note) are worthwhile
+independently if desired. **STOP — awaiting explicit go-ahead.**

@@ -214,6 +214,13 @@ def build():
         {_traj_svg(traj)}</div>
     </div>''')
 
+    # ---- Phase 3: regime transition matrix (where next?) under the trajectory ----
+    def _trans():
+        bs = analytics.bucket_series_monthly(loaded)
+        mats = analytics.compute_transition_matrix(bs, horizons=(3, 6))
+        return analytics.transition_summary(bs, mats)
+    P.append(_safe(lambda: _transition_panel(_trans()), ""))
+
     # ---- 2c: distance-to-trip gauges, sorted nearest-trigger-first ----
     def _twfill(tw):
         r = by.get(tw["indicator"]); cur = r["current"] if r and r["ok"] else None
@@ -321,6 +328,25 @@ def _waterfall(contrib, total):
                f'<div class="wfbar"><span style="width:{total:.0f}%;background:var(--blue)"></span></div>'
                f'<span class="wfval">{total:.1f}</span></div></div>')
     return "".join(out)
+
+
+def _transition_panel(ts):
+    """Phase 3: from today's regime bucket, the historical Markov stay/ease/worsen split."""
+    cur = ts["current"]
+    rows = ""
+    for k in sorted(ts["horizons"]):
+        h = ts["horizons"][k]
+        rows += (f'<div class="prow"><span>after <b>{k} months</b></span>'
+                 f'<span class="muted small">stay <b>{h["stay"]}%</b> &middot; '
+                 f'<span style="color:var(--green)">ease {h["improve"]}%</span> &middot; '
+                 f'<span style="color:var(--red)">worsen {h["worsen"]}%</span></span></div>')
+    return (f'<div class="card"><h3>Where next? '
+            f'<span class="muted small">&middot; historical regime transitions (Markov, 1999&ndash;2026)</span></h3>'
+            f'<div class="muted small" style="margin-bottom:6px">From today\'s bucket <b>{cur}</b>, historically:</div>'
+            f'{rows}'
+            f'<div class="muted small" style="margin-top:6px">Row-normalized, Laplace-smoothed transitions of the '
+            f'monthly composite bucket. Stress buckets are episode-dominated (few independent runs) &mdash; '
+            f'read as directional, not precise.</div></div>')
 
 
 def _ai_overlay(rows):
