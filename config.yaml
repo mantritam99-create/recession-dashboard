@@ -14,15 +14,25 @@ cache:
   monthly_max_age_h: 720   # monthly/quarterly series: ~30 days
   market_max_age_h: 12
 
-# --- weights for the 3-bucket composite (must sum to 1.0) ---
+# --- weights for the composite (must sum to 1.0) ---
+#  v2: credit promoted to a first-class bucket so the "spark" (credit/labor)
+#  is no longer diluted inside one mega-macro bucket. Valuation stays heavy
+#  (it's the fuel); the regime map (not the blended score) is the headline.
+#  Bands are RECALIBRATED for these weights by model/backtest.py.
 weights:
-  valuation: 0.35
-  macro_stress: 0.40
-  sentiment: 0.25
+  valuation: 0.30
+  macro_labor: 0.40
+  credit: 0.15
+  sentiment: 0.15
 
 # --- breadth: an indicator is "in the danger zone" above this stress score ---
 breadth:
   danger_zone: 75
+
+# --- staleness decay: a flagged-stale indicator keeps only this share of its
+#     weight in its bucket mean (a frozen value shouldn't hold full sway) ---
+staleness:
+  stale_weight: 0.4
 
 # --- absolute reference thresholds (used by signals.py trip-wires, NOT by
 #     the percentile scorer, which is purely historical) ---
@@ -38,17 +48,20 @@ thresholds:
 #  bucket:    valuation | macro_stress | sentiment
 #  direction: 'high' = high readings are stressful (score = percentile)
 #             'low'  = low/negative readings are stressful (score = 100-pctile)
+#  v2 buckets: macro_labor (curve+labor+activity) | credit (spreads+lending) |
+#  sentiment (surveys+vol). 2s10s -> context (confirmation-only; T10Y3M is the
+#  core curve signal, so we don't double-count one curve factor in the score).
 fred_series:
-  T10Y3M:        {name: "3M-10Y spread",        bucket: macro_stress, direction: low}
-  T10Y2Y:        {name: "2s10s spread",         bucket: macro_stress, direction: low}
-  BAMLH0A0HYM2:  {name: "High-yield OAS",        bucket: macro_stress, direction: high}
-  BAMLC0A0CM:    {name: "IG credit spread",      bucket: macro_stress, direction: high}
-  SAHMREALTIME:  {name: "Sahm Rule",             bucket: macro_stress, direction: high}
-  ICSA:          {name: "Initial jobless claims", bucket: macro_stress, direction: high}
-  CPILFESL:      {name: "Core CPI (YoY calc)",   bucket: macro_stress, direction: high, transform: yoy}
-  DCOILWTICO:    {name: "WTI crude",             bucket: macro_stress, direction: high}
-  DRTSCILM:      {name: "Bank lending standards", bucket: macro_stress, direction: high}
-  DRCCLACBS:     {name: "Credit card delinquency", bucket: macro_stress, direction: high}
+  T10Y3M:        {name: "3M-10Y spread",        bucket: macro_labor, direction: low}
+  T10Y2Y:        {name: "2s10s spread",         bucket: context,     direction: low}
+  BAMLH0A0HYM2:  {name: "High-yield OAS",        bucket: credit,      direction: high}
+  BAMLC0A0CM:    {name: "IG credit spread",      bucket: credit,      direction: high}
+  SAHMREALTIME:  {name: "Sahm Rule",             bucket: macro_labor, direction: high}
+  ICSA:          {name: "Initial jobless claims", bucket: macro_labor, direction: high}
+  CPILFESL:      {name: "Core CPI (YoY calc)",   bucket: macro_labor, direction: high, transform: yoy}
+  DCOILWTICO:    {name: "WTI crude",             bucket: macro_labor, direction: high}
+  DRTSCILM:      {name: "Bank lending standards", bucket: credit,     direction: high}
+  DRCCLACBS:     {name: "Credit card delinquency", bucket: credit,    direction: high}
   UMCSENT:       {name: "U.Mich sentiment",      bucket: sentiment,    direction: low}
   PSAVERT:       {name: "Personal savings rate", bucket: sentiment,    direction: low}
 
@@ -73,10 +86,15 @@ valuation:
 #  So 70 is the warning line; 75+ is acute. Edit here if you re-run the backtest.
 bands:
   composite:
-    benign:   55     # below = no crisis signal
-    watch:    65     # 55-65 = late-cycle watch
-    warning:  70     # 65-70 = elevated; >=70 = backtested warning zone
-    acute:    80     # >=80 = broad acute stress
+    benign:   50     # below = no crisis signal
+    watch:    58     # 50-58 = late-cycle watch
+    warning:  65     # >=65 = backtested warning zone (v2 recalibration, 2026-06-20)
+    acute:    72     # >=72 = broad acute stress
+    # v2 recalibration (val .30 / macro_labor .40 / credit .15 / sent .15):
+    #   >=65 caught the 2000 top (17m lead) & 2007 top (15m lead), MISSED exogenous
+    #   COVID. Benign false-positive ~16% (higher than the old 3-bucket's 7.5% — the
+    #   cost of separating credit; much of it is genuine late-cycle elevation in
+    #   1999/2006/2019). The regime map, not this composite, is the headline signal.
 
 # --- trip-wires: the "what would confirm the crash" checklist ---------
 #  Each maps to a live indicator; `trips_when` + `level` define the trigger.

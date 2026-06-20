@@ -97,8 +97,59 @@ def freshness(rows: list) -> dict:
              for r in rows]
     return {"coverage": (len(ok) / len(rows) if rows else 0.0),
             "n_live": len(ok), "n_total": len(rows),
+            "n_series_live": sum(1 for r in ok if r["source"] == "live"),
+            "n_manual": sum(1 for r in ok if r["source"] == "manual"),
             "stale": [r["name"] for r in ok if r.get("stale")],
             "items": sorted(items, key=lambda x: (x["asof"] or ""))}
+
+
+# --- historical bubble-score scorecard (Phase 0a) -------------------------
+#  Cross-episode comparison: value AT each date scored against the FULL series
+#  (descriptive ruler), then current 3-bucket composite. NOT the no-lookahead
+#  backtest ruler — that's percentile_asof, right for calibration, wrong here.
+#  Series-only (manual layer has no history), which matches backtest semantics.
+HISTORY_EPISODES = [
+    ("Dot-com", "start", "1998-12-31"), ("Dot-com", "peak", "2000-03-31"), ("Dot-com", "burst", "2001-03-31"),
+    ("GFC", "start", "2004-06-30"),     ("GFC", "peak", "2007-10-31"),     ("GFC", "burst", "2008-09-30"),
+    ("COVID", "peak", "2020-02-29"),    ("COVID", "burst", "2020-03-31"),
+    ("Current", "now", None),
+]
+
+
+def _score_fullruler(series, asof, direction):
+    """Value as-of `asof`, ranked against the WHOLE series (one comparable ruler)."""
+    if series is None:
+        return None
+    s = series.dropna()
+    if len(s) < indicators.MIN_HIST:
+        return None
+    val = s.asof(pd.Timestamp(asof))
+    if pd.isna(val):
+        return None
+    return indicators.percentile_score(float(val), s, direction)
+
+
+def historical_scorecard(loaded=None) -> list:
+    loaded = indicators.load_all() if loaded is None else loaded
+    weights = CFG["weights"]
+    out = []
+    for ep, stage, date in HISTORY_EPISODES:
+        asof = pd.Timestamp(TODAY()) if date is None else pd.Timestamp(date)
+        per = {b: [] for b in weights}
+        for spec, s in loaded:
+            if spec["bucket"] not in weights:
+                continue
+            sc = _score_fullruler(s, asof, spec["direction"])
+            if sc is not None:
+                per[spec["bucket"]].append(sc)
+        bucket = {b: (sum(v) / len(v) if v else None) for b, v in per.items()}
+        avail = {b: w for b, w in weights.items() if bucket[b] is not None}
+        wsum = sum(avail.values()) or 1.0
+        comp = sum(bucket[b] * w / wsum for b, w in avail.items()) if avail else None
+        out.append({"episode": ep, "stage": stage, "date": asof.date().isoformat(),
+                    "composite": comp, "buckets": {b: bucket.get(b) for b in weights},
+                    "n_live": sum(len(v) for v in per.values())})
+    return out
 
 
 # ===========================================================================
@@ -222,22 +273,28 @@ def analogs(loaded=None, top=5) -> list:
     return [{"date": d.isoformat(), "year": d.year, "sim": round(s * 100)} for d, s in ranked]
 
 
-def regime(rows, c, tr) -> str:
+def regime(rows, c, tr, tripped=0) -> str:
+    """THE single regime label (v2): valuation level x trigger state, with a
+    trigger override. Replaces the old verdict._stance badge as the headline."""
     by = {r["name"]: r for r in rows}
-    comp, breadth = c["composite"], c["breadth"]
-    sahm = by.get("Sahm Rule"); claims = by.get("Initial jobless claims")
-    val = c["bucket"].get("valuation") or 0; macro = c["bucket"].get("macro_stress") or 0
-    if (sahm and sahm["current"] is not None and sahm["current"] >= 0.5) or \
-       (claims and claims["ok"] and claims["score"] >= 85):
-        return "Recession"
-    if comp >= BANDS["warning"] and breadth >= 0.5:
-        return "Late-cycle / pre-recession"
-    if val >= 85 and macro < 55:
-        return "Bubble / late-cycle"
+    comp = c["composite"]
+    sahm = by.get("Sahm Rule")
+    val = c["bucket"].get("valuation") or 0
+    spark = max(c["bucket"].get("macro_labor") or 0, c["bucket"].get("credit") or 0)
+    # --- trigger override dominates valuation ---
+    if tripped >= 4 or (sahm and sahm["current"] is not None and sahm["current"] >= 0.5):
+        return "Triggered / active break"
+    if tripped >= 2:
+        return "Crash watch"
+    # --- otherwise: valuation x spark map ---
+    if val >= 80 and spark >= 60:
+        return "Fragile late-cycle"
+    if val >= 80:
+        return "Bubble / excess"
     if (tr.get("d3") or 0) < -4 and comp < BANDS["watch"]:
         return "Recovery"
     if comp < BANDS["benign"]:
-        return "Expansion"
+        return "Normal / expansion"
     return "Late-cycle"
 
 

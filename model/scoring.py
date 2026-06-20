@@ -25,10 +25,15 @@ def composite(rows=None) -> dict:
     weights = CFG["weights"]
     dz = CFG["breadth"]["danger_zone"]
 
+    # bucket score = staleness-WEIGHTED mean of its live members (a flagged-stale
+    # indicator keeps only stale_weight of its vote, so a frozen value can't hold
+    # the bucket where it was last read).
+    sw = CFG.get("staleness", {}).get("stale_weight", 1.0)
     bucket = {}
     for b in weights:
-        vals = [r["score"] for r in ok if r["bucket"] == b]
-        bucket[b] = sum(vals) / len(vals) if vals else None
+        members = [r for r in ok if r["bucket"] == b]
+        iw = sum((sw if r.get("stale") else 1.0) for r in members)
+        bucket[b] = (sum(r["score"] * (sw if r.get("stale") else 1.0) for r in members) / iw) if iw else None
 
     # renormalize weights across buckets that actually have data
     avail = {b: w for b, w in weights.items() if bucket[b] is not None}
@@ -127,7 +132,20 @@ def indicator_deltas(loaded=None, asof=None, lookback=3) -> dict:
     return out
 
 
+def _selfcheck_staleness():
+    """A stale indicator must pull its bucket less than the same value fresh."""
+    base = lambda stale: [
+        {"name": "hi", "bucket": "valuation", "score": 90, "ok": True, "stale": False},
+        {"name": "lo", "bucket": "valuation", "score": 10, "ok": True, "stale": stale},  # low one decays when stale
+    ]
+    fresh = composite(base(False))["bucket"]["valuation"]   # mean(90,10)=50
+    stale = composite(base(True))["bucket"]["valuation"]    # 10 down-weighted -> >50
+    assert stale > fresh, f"staleness decay broken: stale={stale} !> fresh={fresh}"
+    print(f"  [selfcheck] staleness decay OK (fresh bucket={fresh:.1f}, with stale low={stale:.1f})")
+
+
 if __name__ == "__main__":
+    _selfcheck_staleness()
     c = composite()
     print(f"composite={c['composite']}  confidence={c['confidence']} +/-{c['margin']}  "
           f"breadth={c['breadth']}  coverage={c['coverage']}")

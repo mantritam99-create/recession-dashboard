@@ -10,7 +10,7 @@ from config import CFG, has_fred
 from model import indicators, scoring
 from output import verdict
 
-BUCKETS = ["valuation", "macro_stress", "sentiment"]
+BUCKETS = list(CFG["weights"])
 
 
 def main():
@@ -44,8 +44,8 @@ def main():
     print("  COMPOSITE  (weighted, breadth-adjusted)")
     print("  " + "-" * 68)
     bk = c["bucket"]; wu = c["weights_used"]
-    for b in ["valuation", "macro_stress", "sentiment"]:
-        v = bk[b]
+    for b in CFG["weights"]:
+        v = bk.get(b)
         w = wu.get(b)
         wtxt = f"w={w:.2f}" if w is not None else "w=  -- (no data)"
         print(f"    {b:14s} {('%5.1f' % v) if v is not None else '  -- '}   {wtxt}")
@@ -76,8 +76,7 @@ def _log(rows, ok, danger, c):
     line = (f"\n### {datetime.datetime.now():%Y-%m-%d %H:%M}\n"
             f"- composite **{c['composite']}** | confidence **{c['confidence']} +/-{c['margin']:.0f}** "
             f"| breadth {c['breadth']}\n"
-            f"- buckets val/macro/sent: {c['bucket']['valuation']} / "
-            f"{c['bucket']['macro_stress']} / {c['bucket']['sentiment']}\n"
+            f"- buckets: " + " / ".join(f"{b.replace('_','-')} {v}" for b, v in c['bucket'].items()) + "\n"
             f"- live: {len(ok)}/{len(rows)} | danger-zone: {len(danger)}\n"
             f"- highest stress: " +
             ", ".join(f"{r['name']} ({r['score']:.0f})" for r in top) + "\n")

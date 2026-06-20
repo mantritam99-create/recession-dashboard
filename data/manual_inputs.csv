@@ -1,7 +1,7 @@
 date,indicator,name,bucket,value,calm,stress,note
-2026-03-01,hyperscaler_capex_qoq,Hyperscaler capex QoQ%,macro_stress,12.0,0,30,"MSFT+GOOGL+META+AMZN combined capex QoQ% (10-Qs). Frothy growth = bubble building; a CUT is the crash catalyst."
-2026-03-01,nvda_inventory_days,NVDA inventory days,macro_stress,95,60,140,"NVDA inventory / COGS * 90. Rising = demand softening / channel glut."
-2026-03-01,ai_infra_credit_spread,AI-infra credit spread,macro_stress,260,150,600,"Oracle/CoreWeave bond OAS vs treasuries, bp. Widening = financing stress in the AI buildout."
+2026-03-01,hyperscaler_capex_qoq,Hyperscaler capex QoQ%,overlay,12.0,0,30,"MSFT+GOOGL+META+AMZN combined capex QoQ% (10-Qs). Frothy growth = bubble building; a CUT is the crash catalyst."
+2026-03-01,nvda_inventory_days,NVDA inventory days,overlay,95,60,140,"NVDA inventory / COGS * 90. Rising = demand softening / channel glut."
+2026-03-01,ai_infra_credit_spread,AI-infra credit spread,overlay,260,150,600,"Oracle/CoreWeave bond OAS vs treasuries, bp. Widening = financing stress in the AI buildout."
 2026-03-01,aaii_bull_bear,AAII bull-bear spread,sentiment,8.0,-15,35,"AAII %bulls - %bears (aaii.com). High = retail complacency."
 2026-03-01,insider_buy_sell,Insider buy/sell ratio,sentiment,0.6,1.2,0.3,"Insider buys/sells. LOW = insiders dumping (calm=1.2, stress=0.3)."
 2026-03-01,margin_debt_yoy,Margin debt YoY%,sentiment,18.0,0,25,"FINRA margin debt YoY%. High = leverage building into the rally."
