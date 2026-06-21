@@ -1,0 +1,20 @@
+id,name,source,bucket,direction
+T10Y3M,3M-10Y spread,FRED,macro_labor,low
+T10Y2Y,2s10s spread,FRED,context,low
+BAMLH0A0HYM2,High-yield OAS,FRED,credit,high
+BAMLC0A0CM,IG credit spread,FRED,credit,high
+SAHMREALTIME,Sahm Rule,FRED,macro_labor,high
+ICSA,Initial jobless claims,FRED,macro_labor,high
+CPILFESL,Core CPI (YoY calc),FRED,macro_labor,high
+DCOILWTICO,WTI crude,FRED,macro_labor,high
+DRTSCILM,Bank lending standards,FRED,credit,high
+DRCCLACBS,Credit card delinquency,FRED,credit,high
+UMCSENT,U.Mich sentiment,FRED,sentiment,low
+PSAVERT,Personal savings rate,FRED,sentiment,low
+^GSPC,S&P 500,Yahoo,context,high
+^VIX,VIX,Yahoo,sentiment,high
+^TNX,10Y yield,Yahoo,context,high
+DX-Y.NYB,US Dollar Index,Yahoo,context,high
+NVDA,NVIDIA (AI proxy),Yahoo,context,high
+cape,Shiller CAPE,multpl,valuation,high
+buffett,Buffett Indicator,fred_computed,valuation,high
