@@ -17,6 +17,8 @@ import os
 import sys
 import json
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pandas as pd
 from model import indicators, scoring, analytics
@@ -64,6 +66,7 @@ def _close(a, b) -> bool:
     return a is not None and b is not None and abs(a - b) <= EPS
 
 
+@pytest.mark.requires_fred
 def test_baseline_snapshot():
     assert os.path.exists(SNAP), f"fixture missing — run: py {__file__}"
     with open(SNAP, encoding="utf-8") as f:

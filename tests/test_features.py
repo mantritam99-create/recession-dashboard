@@ -6,11 +6,14 @@ no broken raw_id mappings (all-NaN columns), and live coverage in recent months.
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from model import indicators
 import features
 
 
+@pytest.mark.requires_fred
 def test_features_compute():
     raw = indicators.load_raw_data()
     df = features.compute_features(raw)
