@@ -1,7 +1,6 @@
-date,indicator,name,bucket,value,calm,stress,note
-2026-03-01,hyperscaler_capex_qoq,Hyperscaler capex QoQ%,overlay,12.0,0,30,"MSFT+GOOGL+META+AMZN combined capex QoQ% (10-Qs). Frothy growth = bubble building; a CUT is the crash catalyst."
-2026-03-01,nvda_inventory_days,NVDA inventory days,overlay,95,60,140,"NVDA inventory / COGS * 90. Rising = demand softening / channel glut."
-2026-03-01,ai_infra_credit_spread,AI-infra credit spread,overlay,260,150,600,"Oracle/CoreWeave bond OAS vs treasuries, bp. Widening = financing stress in the AI buildout."
-2026-03-01,aaii_bull_bear,AAII bull-bear spread,sentiment,8.0,-15,35,"AAII %bulls - %bears (aaii.com). High = retail complacency."
-2026-03-01,insider_buy_sell,Insider buy/sell ratio,sentiment,0.6,1.2,0.3,"Insider buys/sells. LOW = insiders dumping (calm=1.2, stress=0.3)."
-2026-03-01,margin_debt_yoy,Margin debt YoY%,sentiment,18.0,0,25,"FINRA margin debt YoY%. High = leverage building into the rally."
+2026-07-07,hyperscaler_capex_qoq,Hyperscaler capex QoQ%,overlay,4.0,0,30,"MSFT+GOOGL+META+AMZN combined capex QoQ%, Q1'26 vs Q4'25 (Platformonomics, Apr 2026)."
+2026-07-07,nvda_inventory_days,NVDA inventory days,overlay,113,60,140,"NVDA FQ1'27 10-Q (Apr 26 2026): inventory $25,797M / COGS ~$20,480M * 90."
+2026-07-07,ai_infra_credit_spread,AI-infra credit spread,overlay,300,150,600,"Blended est. Oracle ~108bp / CoreWeave ~450-500bp CDS (Jun 2026) -- APPROXIMATE, verify vs bond OAS."
+2026-07-07,aaii_bull_bear,AAII bull-bear spread,sentiment,-10.9,-15,35,"AAII Jul 2 2026: bullish 31.4% - bearish 42.3%."
+2026-07-07,insider_buy_sell,Insider buy/sell ratio,sentiment,0.30,1.2,0.3,"GuruFocus USA overall market, Jun 1 2026."
+2026-07-07,margin_debt_yoy,Margin debt YoY%,sentiment,53.7,0,25,"FINRA margin debt YoY%, May 2026."
