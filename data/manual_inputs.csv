@@ -1,3 +1,4 @@
+date,key,label,kind,value,low,high,notes
 2026-07-07,hyperscaler_capex_qoq,Hyperscaler capex QoQ%,overlay,4.0,0,30,"MSFT+GOOGL+META+AMZN combined capex QoQ%, Q1'26 vs Q4'25 (Platformonomics, Apr 2026)."
 2026-07-07,nvda_inventory_days,NVDA inventory days,overlay,113,60,140,"NVDA FQ1'27 10-Q (Apr 26 2026): inventory $25,797M / COGS ~$20,480M * 90."
 2026-07-07,ai_infra_credit_spread,AI-infra credit spread,overlay,300,150,600,"Blended est. Oracle ~108bp / CoreWeave ~450-500bp CDS (Jun 2026) -- APPROXIMATE, verify vs bond OAS."
