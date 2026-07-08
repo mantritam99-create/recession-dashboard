@@ -73,3 +73,9 @@ record of how your own signal evolved — the most valuable artifact here.
 - buckets: valuation 98.2 / macro-labor 61.7 / credit 28.1 / sentiment 70.8
 - live: 21/21 | danger-zone: 6
 - highest stress: U.Mich sentiment (100), Shiller CAPE (99), Buffett Indicator (97)
+
+### 2026-07-08 10:16
+- composite **86.8** | confidence **59.6 +/-26** | breadth 0.38
+- buckets: valuation 99.2 / macro-labor None / credit None / sentiment 61.8
+- live: 8/21 | danger-zone: 3
+- highest stress: Insider buy/sell ratio (100), Margin debt YoY% (100), Shiller CAPE (99)
