@@ -65,10 +65,11 @@ def composite(rows=None) -> dict:
 
 # ---------------------------------------------------------------------------
 #  MOMENTUM  — "how the world is moving", not just where it is.
-#  All point-in-time (series only; the manual layer has no history yet).
+#  All date-causal (series only; latest-vintage revisions remain unless the caller
+#  loads revision-adjusted series for backtesting).
 # ---------------------------------------------------------------------------
 def composite_asof(loaded, asof) -> dict:
-    """Series-only weighted composite as-of a date (no lookahead). Used by trend + backtest."""
+    """Series-only date-causal composite as of a date. Used by trend + backtest."""
     per = {b: [] for b in WEIGHTS}
     n_live = n_danger = 0
     for spec, s in loaded:

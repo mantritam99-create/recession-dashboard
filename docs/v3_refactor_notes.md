@@ -12,16 +12,15 @@ Branch: `feature/v3-refactor`. Test command: **`py -m pytest`** (pytest 9.1.1 in
 config.yaml, config.py, cache_util.py, main.py (all reviewed during the v2 work in this session + re-cited
 below).
 
-### 1. Point-in-time integrity — ALREADY CORRECT in the backtest path
+### 1. Date causality — correct; vintage correctness — not implemented
 - `indicators.percentile_asof(series, asof, dir)` slices `series[series.index <= asof]` before ranking →
   strictly causal (no lookahead). Live `indicators.percentile_score(cur, history, dir)` ranks against the
   FULL series (correct for a live read).
 - `scoring.composite_asof()` and `model/backtest.py` (`sweep = {d: composite_asof(loaded, d) ...}`) use the
-  causal path. So historical scoring is frozen-at-date already. **Phase 1 fix #1 = add an asserting test +
-  comment, not a repair.**
+  causal path. So future rows are excluded, but this alone is not point-in-time correctness.
 - Revisions caveat: FRED series (Sahm, claims, CPI, Buffett inputs) are restated after first release; the
-  pipeline fetches latest-vintage and treats it as if available at the as-of date. Not a vintage DB; will
-  add a `revisions_policy` note in config in Phase 1 (conservative, documented; not building vintages).
+  pipeline fetches latest-vintage values. A later hardening pass added enforced conservative
+  availability lags and explicit not-vintage-exact labels; no vintage database is built.
 
 ### 2. Confidence-by-source — display only
 - `analytics.SRC_CONF` + `analytics.confidence_decomposition()` feed the dashboard `_confidence` panel,
@@ -87,8 +86,9 @@ buckets. Strict on discrete fields, EPS=0.5 on floats (absorbs data-revision noi
    the note. Probability VALUES are unchanged.
 4. **Confidence-by-source** labeled "Informational only — not applied to composite math" in
    `_confidence` panel (it never was load-bearing; no re-wiring).
-5. **`revisions_policy`** documentation block added to `config.yaml` (enforced:false) — latest-vintage is
-   used as-of; treat revised monthly series as ~1 release optimistic. No vintage DB built.
+5. **`revisions_policy`** began as documentation only. It is now enforced by backtests: every loaded
+   series is classified, revision-prone sources are conservatively lagged, and outputs say date-causal,
+   not vintage-exact. No vintage DB is built.
 
 **Validation:** `py -m pytest` → 3 passed (baseline + 2 PIT). **Baseline snapshot GREEN — current-date
 composite/bucket/tripwires/probs UNCHANGED.** No historical fixture deltas (no scoring math changed; PIT was

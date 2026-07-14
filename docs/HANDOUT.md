@@ -24,15 +24,15 @@ raw indicators ──▶ 0–100 stress score ──▶ buckets ──▶ weight
 
 1. **Stress score (0–100) by historical percentile.** Each indicator is scored against its
    *own history*, not an absolute threshold — a CAPE of 38 only means something as "98th
-   percentile since 1881." Backtests use a strictly **point-in-time** percentile (a past date
-   is ranked only against data available then — no look-ahead); the live read uses the full sample.
+   percentile since 1881." Backtests use a **date-causal** percentile (a past date is ranked
+   only against prior rows) plus conservative release lags; the live read uses the full sample.
 2. **Four buckets (weights):** Valuation 30% · Macro-Labor 40% · Credit 15% · Sentiment 15%.
    A bucket's score is the staleness-weighted mean of its indicators.
 3. **Composite** = weighted mean of the buckets.
-4. **Bands (recalibrated on 1999–2021, no look-ahead):** Normal <50 · Elevated 50–65 ·
-   Warning ≥65 · Extreme ≥72. The ≥65 line caught the 2000 top (~17m lead) and 2007 top
-   (~15m lead) and correctly **missed COVID** (exogenous). Benign false-positive ~16% — much
-   of it genuine late-cycle elevation, which is why the regime map, not the bare score, is the headline.
+4. **Bands (checked on 1997–2021):** Normal <50 · Elevated 50–65 · Warning ≥65 ·
+   Extreme ≥72. In the revision-adjusted rerun, ≥65 caught the GFC with 9m lead, missed
+   dot-com and COVID, and fired in 15.0% of benign months. The regime map, not the bare
+   score, is the headline.
 5. **Trip-wires (6):** specific, watchable lines that would *confirm* a crash (curve inversion,
    Sahm rule, HY spread blowout, jobless-claims surge, VIX regime break, bank-standards crunch).
    "0/6 armed" is the disciplined all-clear; arming is the action signal.
@@ -68,9 +68,9 @@ move the headline.
 |---|---|
 | `config.yaml` / `config.py` | all weights, bands, series IDs, trip-wires (tune here, not in code) |
 | `data/fetch_*` + `cache_util.py` | fetch FRED/Yahoo/CAPE, date-stamped cache |
-| `model/indicators.py` | raw data → 0–100 percentile stress (live + point-in-time) |
+| `model/indicators.py` | raw data → 0–100 percentile stress (live + date-causal) |
 | `model/scoring.py` | buckets, weighted composite, trend |
-| `model/backtest.py` | 1999–2021 point-in-time calibration of the bands |
+| `model/backtest.py` | 1997–2021 revision-adjusted/date-causal band check |
 | `model/analytics.py` | trajectory, probabilities, analogs, regime, transition matrix |
 | `output/verdict.py` | trip-wires + plain-English stance + bull-case defeaters |
 | `output/dashboard.py` | self-contained HTML dashboard |
@@ -84,6 +84,8 @@ move the headline.
   stress regimes), so they are directional, not precise.
 - A 16% benign false-positive rate is the cost of cleanly separating credit — the regime/trip-wire
   layer absorbs it.
+- The historical sweep uses latest-vintage observations with conservative availability lags.
+  It has no future rows, but is **not vintage-exact** because later revisions cannot be undone.
 - The AI-overlay and some sentiment inputs are manual quarterly entries (lowest confidence).
 - The model covers composite stress / base rates / trip-wires — **not** portfolio P&L or a joint
   asset distribution. It gives *lead*, not market *timing*.

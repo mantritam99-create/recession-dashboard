@@ -39,7 +39,7 @@ root onto `sys.path` itself.)
 |---|---|
 | `py main.py` | Full run: indicators → composite → verdict; prints the report and appends `log.md` |
 | `py output/dashboard.py` | Builds `output/dashboard.html` (open it in any browser) |
-| `py model/backtest.py` | Re-runs the 1999–2021 point-in-time band calibration |
+| `py model/backtest.py` | Re-runs the 1997–2021 revision-adjusted/date-causal band check |
 | `py export_data.py` | Writes the consolidated data file to `data_export/` |
 | `py -m pytest` | Runs the test suite (baseline snapshot, PIT lock, feature checks) |
 
@@ -82,18 +82,18 @@ log.md               append-only run history
 ## 6. Reproduce the headline results
 
 ```bash
-py model/backtest.py        # prints lead-times: dot-com ~17m, GFC ~15m, COVID miss @ band 65
+py model/backtest.py        # @65: dot-com miss, GFC 9m lead, COVID miss; 15.0% benign FP
 py output/dashboard.py      # current read: composite ~69, regime Fragile late-cycle, 0/6 armed
 py -m pytest                # all green = the v2 scoring behavior is reproduced
 ```
 
 ## 7. Presenting it as a project — angles
 
-- **Methodology:** percentile (relative) stress vs absolute thresholds; why no-look-ahead matters;
+- **Methodology:** percentile (relative) stress vs absolute thresholds; date causality vs vintage correctness;
   bucket weighting + band calibration as an explicit, falsifiable design.
 - **The finding:** today's valuation exceeds the 2000 peak yet 0/6 triggers are armed — and the
   historical scorecard shows dot-com (valuation-led) vs GFC (credit-led) were structurally different.
-- **Engineering:** caching, point-in-time backtest, a regression-snapshot test, a feature registry,
+- **Engineering:** caching, revision-adjusted/date-causal backtest, a regression-snapshot test, a feature registry,
   and the V3 Markov "where next?" layer.
 - **Honesty:** the limitations section in `HANDOUT.md` (small effective episode counts, false-positive
   trade-off, lead-not-timing) is itself a talking point — it shows you understand the model's edges.

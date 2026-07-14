@@ -26,10 +26,10 @@ def percentile_score(current, history, direction: str = "high"):
 
 
 def percentile_asof(series, asof, direction: str = "high"):
-    """Point-in-time score: percentile of the as-of value vs ONLY prior history.
+    """Date-causal score: percentile of the as-of value vs ONLY prior rows.
 
-    Critical for an honest backtest — never lets the model 'see' future data when
-    scoring a past date. Returns (current_value, stress_score) or (None, None).
+    This prevents future-row lookahead. It does not make latest-vintage source data
+    vintage-correct. Returns (current_value, stress_score) or (None, None).
     """
     if series is None:
         return None, None
@@ -45,9 +45,24 @@ def _last(s):
     return float(s.iloc[-1]) if s is not None and len(s) else None
 
 
-def load_all():
-    """Fetch every indicator's full series once (cached). [(spec, series), ...]."""
-    return [(spec, _load(spec)) for spec in _specs()]
+def load_all(revision_adjusted: bool = False):
+    """Fetch every indicator once; optionally enforce the backtest revision policy."""
+    return [(spec, _load(spec, revision_adjusted)) for spec in _specs()]
+
+
+def apply_revision_policy(series, key: str):
+    """Delay latest-vintage data by its configured conservative availability lag."""
+    if series is None or not CFG["revisions_policy"]["enforced"]:
+        return series
+    rule = CFG["revisions_policy"]["series"].get(key)
+    if rule is None:
+        raise ValueError(f"missing revisions_policy classification for {key}")
+    lag = int(rule["lag_months"])
+    if lag <= 0:
+        return series
+    delayed = series.copy()
+    delayed.index = pd.DatetimeIndex(delayed.index) + pd.DateOffset(months=lag)
+    return delayed.sort_index()
 
 
 def load_raw_data() -> dict:
@@ -77,19 +92,22 @@ def _specs():
     return specs
 
 
-def _load(spec):
+def _load(spec, revision_adjusted=False):
     src = spec["src"]
     if src == "fred":
-        s = fetch_fred.series(spec["key"])
+        s = fetch_fred.series(spec["key"], allow_stale=revision_adjusted)
         if s is not None and spec.get("transform") == "yoy":
             s = fetch_fred.yoy(s)
-        return s
+        return apply_revision_policy(s, spec["key"]) if revision_adjusted else s
     if src == "market":
-        return fetch_market.history(spec["key"])
+        s = fetch_market.history(spec["key"])
+        return apply_revision_policy(s, spec["key"]) if revision_adjusted else s
     if src == "val_cape":
-        return fetch_valuation.cape_history()
+        s = fetch_valuation.cape_history()
+        return apply_revision_policy(s, spec["key"]) if revision_adjusted else s
     if src == "val_buffett":
-        return fetch_valuation.buffett_history()
+        s = fetch_valuation.buffett_history(allow_stale=revision_adjusted)
+        return apply_revision_policy(s, spec["key"]) if revision_adjusted else s
     return None
 
 

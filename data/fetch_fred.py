@@ -16,19 +16,22 @@ _MAX = CFG["cache"]["monthly_max_age_h"]  # FRED publishes on a lag; daily is fi
 _warned = False
 
 
-def series(series_id: str, start: str | None = None) -> pd.Series | None:
+def series(series_id: str, start: str | None = None,
+           allow_stale: bool = False) -> pd.Series | None:
     global _warned
-    if not has_fred():
-        if not _warned:
-            print("  [fred] no API key (config.yaml fred.api_key or $FRED_API_KEY) "
-                  "-> FRED indicators skipped")
-            _warned = True
-        return None
-
     key = f"fred_{series_id}"
     s = cache.get_series(key, _MAX)
     if s is not None:
         return s
+
+    if not has_fred():
+        stale = cache.get_series(key, 1e9) if allow_stale else None
+        if not _warned:
+            action = "using stale cache" if stale is not None else "FRED indicators skipped"
+            print("  [fred] no API key (config.yaml fred.api_key or $FRED_API_KEY) "
+                  f"-> {action}")
+            _warned = True
+        return stale
 
     q = urllib.parse.urlencode({
         "series_id": series_id, "api_key": fred_key(), "file_type": "json",

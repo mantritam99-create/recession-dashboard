@@ -34,17 +34,32 @@ breadth:
 staleness:
   stale_weight: 0.4
 
-# --- data revisions policy (V3 Phase 1, documentation only — not yet enforced) ---
-#  Several FRED series are restated after first release (SAHMREALTIME is the
-#  real-time vintage and is safe; UNRATE-derived Sahm, ICSA, CPI, and the Buffett
-#  Indicator inputs get revised). The backtest fetches latest-vintage data and
-#  treats it as available at the as-of date, which is mildly optimistic for those
-#  series. We do NOT build a vintage database; conservative reading is to lag any
-#  revised monthly series ~1 release (about 1 month) when interpreting tight
-#  historical lead-times. SAHMREALTIME is already point-in-time by construction.
+# --- historical data-revision policy ---------------------------------
+#  The cache contains latest-vintage observations, not an ALFRED vintage database.
+#  Backtests therefore enforce conservative availability lags for revision-prone
+#  series and label the result revision-adjusted/date-causal, NOT vintage-exact.
+#  `classification` is mandatory for every series used by model/indicators.py.
 revisions_policy:
-  enforced: false
-  note: "latest-vintage used as-of; treat revised monthly series as ~1 release optimistic"
+  enforced: true
+  mode: conservative_release_lag
+  vintage_exact: false
+  note: "latest-vintage values with conservative availability lags; date-causal, not vintage-exact"
+  series:
+    T10Y3M:       {classification: revision_safe,       lag_months: 0}
+    T10Y2Y:       {classification: revision_safe,       lag_months: 0}
+    BAMLH0A0HYM2: {classification: revision_safe,       lag_months: 0}
+    BAMLC0A0CM:   {classification: revision_safe,       lag_months: 0}
+    SAHMREALTIME: {classification: revision_safe,       lag_months: 0}
+    ICSA:         {classification: revision_prone,      lag_months: 1}
+    CPILFESL:     {classification: revision_prone,      lag_months: 1}
+    DCOILWTICO:   {classification: revision_safe,       lag_months: 0}
+    DRTSCILM:     {classification: revision_prone,      lag_months: 3}
+    DRCCLACBS:    {classification: revision_prone,      lag_months: 3}
+    UMCSENT:      {classification: revision_prone,      lag_months: 1}
+    PSAVERT:      {classification: revision_prone,      lag_months: 1}
+    "^VIX":      {classification: revision_safe,       lag_months: 0}
+    cape:         {classification: unavailable_vintage, lag_months: 1}
+    buffett:      {classification: unavailable_vintage, lag_months: 3}
 
 # --- absolute reference thresholds (used by signals.py trip-wires, NOT by
 #     the percentile scorer, which is purely historical) ---
@@ -91,22 +106,20 @@ valuation:
   cape:    {name: "Shiller CAPE", bucket: valuation, direction: high, source: multpl}
   buffett: {name: "Buffett Indicator", bucket: valuation, direction: high, source: fred_computed}
 
-# --- verdict bands, CALIBRATED by model/backtest.py -------------------
-#  Backtest (1997-2021, no lookahead): composite >=70 caught the 2000 top (18m
-#  lead) and 2007 top (8m lead), correctly MISSED exogenous COVID, and fired in
-#  only 7.5% of benign months. Non-event corrections (2011/15/18) peaked <=60.
-#  So 70 is the warning line; 75+ is acute. Edit here if you re-run the backtest.
+# --- verdict bands, checked by model/backtest.py ----------------------
+#  Revision-adjusted/date-causal rerun (1997-2021): >=65 caught the GFC with
+#  9m lead, missed dot-com and COVID, and fired in 15.0% of benign months.
+#  These are operating bands, not vintage-exact probability thresholds.
 bands:
   composite:
     benign:   50     # below = no crisis signal
     watch:    58     # 50-58 = late-cycle watch
-    warning:  65     # >=65 = backtested warning zone (v2 recalibration, 2026-06-20)
+    warning:  65     # >=65 = operating warning zone
     acute:    72     # >=72 = broad acute stress
-    # v2 recalibration (val .30 / macro_labor .40 / credit .15 / sent .15):
-    #   >=65 caught the 2000 top (17m lead) & 2007 top (15m lead), MISSED exogenous
-    #   COVID. Benign false-positive ~16% (higher than the old 3-bucket's 7.5% — the
-    #   cost of separating credit; much of it is genuine late-cycle elevation in
-    #   1999/2006/2019). The regime map, not this composite, is the headline signal.
+    # Revision-adjusted rerun (val .30 / macro-labor .40 / credit .15 / sent .15):
+    #   >=60 caught dot-com (18m), GFC (16m), and COVID (6m) but had 29.6% benign FP.
+    #   >=65 caught only GFC (9m), missed dot-com/COVID, and had 15.0% benign FP.
+    #   The regime map and trip-wires, not this composite alone, are the headline.
 
 # --- trip-wires: the "what would confirm the crash" checklist ---------
 #  Each maps to a live indicator; `trips_when` + `level` define the trigger.

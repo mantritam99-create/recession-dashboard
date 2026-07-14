@@ -80,8 +80,8 @@ def render(rows=None, c=None):
     bk = c["bucket"]
     L.append("  Buckets:  " + " | ".join(f"{b.replace('_', '-')} {v}" for b, v in bk.items())
              + f"    ({c['n_live']}/{c['n_total']} live)")
-    L.append(f"  Backtest: >=70 flagged the 2000 top (18m) & 2007 top (8m), missed exogenous")
-    L.append(f"            COVID, fired in only 7.5% of benign months. (model/backtest.py)")
+    L.append("  Backtest: revision-adjusted >=65 caught GFC (9m), missed dot-com/COVID,")
+    L.append("            and fired in 15.0% of benign months; not vintage-exact.")
 
     L.append("")
     L.append("  WHAT WOULD CONFIRM THE CRASH   (trip-wires; [X] = tripped):")

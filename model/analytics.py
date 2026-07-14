@@ -1,6 +1,6 @@
 """Reusable analytics layer for the dashboard components (shared engine).
 
-Everything point-in-time (no lookahead), computed from the same `load_all()` set
+Everything date-causal (no future rows), computed from the same `load_all()` set
 so US and a future India build stay in sync. Keep dashboard.py to rendering only.
 """
 import os, sys, datetime
@@ -42,7 +42,7 @@ def _eom(p): return p.to_timestamp(how="end")
 
 
 def composite_series(loaded=None, start="1999-01-01") -> list:
-    """[(date, composite), ...] monthly — the long-run trajectory (series-only, no lookahead)."""
+    """[(date, composite), ...] monthly — the long-run date-causal trajectory."""
     loaded = indicators.load_all() if loaded is None else loaded
     dates = pd.date_range(start, pd.Timestamp(TODAY()), freq="MS")
     out = []
@@ -90,7 +90,7 @@ def indicator_sparklines(loaded=None, months=18) -> dict:
 
 
 def freshness(rows: list) -> dict:
-    """Data-quality header: coverage %, stale count, per-input vintage."""
+    """Data-quality header: coverage %, stale count, per-input observation date."""
     ok = [r for r in rows if r["ok"]]
     items = [{"name": r["name"], "asof": r.get("asof"), "source": r["source"],
               "stale": bool(r.get("stale")), "family": family_of(r["name"])}
@@ -105,7 +105,7 @@ def freshness(rows: list) -> dict:
 
 # --- historical bubble-score scorecard (Phase 0a) -------------------------
 #  Cross-episode comparison: value AT each date scored against the FULL series
-#  (descriptive ruler), then current 3-bucket composite. NOT the no-lookahead
+#  (descriptive ruler), then current 4-bucket composite. NOT the date-causal
 #  backtest ruler — that's percentile_asof, right for calibration, wrong here.
 #  Series-only (manual layer has no history), which matches backtest semantics.
 HISTORY_EPISODES = [
@@ -174,7 +174,7 @@ def _series_by_name(loaded, name):
 
 
 def stress_matrix(loaded=None, start="2000-01-01") -> pd.DataFrame:
-    """months x series-indicators matrix of stress scores (point-in-time)."""
+    """Months x series-indicators matrix of date-causal stress scores."""
     loaded = indicators.load_all() if loaded is None else loaded
     dates = pd.date_range(start, pd.Timestamp(TODAY()), freq="MS")
     cols = {}
@@ -185,7 +185,7 @@ def stress_matrix(loaded=None, start="2000-01-01") -> pd.DataFrame:
 
 
 def forward_returns(loaded=None, start="1999-01-01") -> list:
-    """Composite bucket -> realized avg fwd-12m S&P return (+ N). Empirical, no lookahead in composite."""
+    """Composite bucket -> realized avg fwd-12m S&P return (+ N); composite is date-causal."""
     loaded = indicators.load_all() if loaded is None else loaded
     comp = composite_series(loaded, start)
     spx = fetch_market.history("^GSPC")

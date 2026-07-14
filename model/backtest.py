@@ -1,7 +1,7 @@
 """Validate the composite against history BEFORE trusting any live verdict.
 
-Sweeps the model month-by-month from 1997-2021 using strictly point-in-time data
-(no lookahead), then checks three questions the brief insists on:
+Sweeps the model month-by-month from 1997-2021 using date-causal data with
+conservative release lags (no future rows; not vintage-exact), then checks:
   1. Did the composite rise ahead of the 2000 top and the 2007 top?  (sensitivity)
   2. Did it correctly STAY LOW before COVID, an exogenous shock?       (no false genius)
   3. How often does it fire in benign months?                          (false-positive rate)
@@ -27,12 +27,22 @@ def _mdiff(a, b):  # whole months from b to a
     return (a.year - b.year) * 12 + (a.month - b.month)
 
 
+def _require_complete(loaded):
+    missing = [spec["name"] for spec, series in loaded
+               if spec["bucket"] in CFG["weights"] and series is None]
+    if missing:
+        raise RuntimeError("backtest requires complete scored-series history; missing: "
+                           + ", ".join(missing))
+
+
 def run():
     print("=" * 74)
-    print("  BACKTEST  -  point-in-time composite, monthly 1997-2021 (no lookahead)")
+    print("  BACKTEST - revision-adjusted/date-causal, monthly 1997-2021")
+    print("  Latest-vintage values + conservative release lags; NOT vintage-exact")
     print("=" * 74)
 
-    loaded = indicators.load_all()
+    loaded = indicators.load_all(revision_adjusted=True)
+    _require_complete(loaded)
     dates = pd.date_range("1997-01-01", "2021-06-01", freq="MS")
     sweep = {d: scoring.composite_asof(loaded, d) for d in dates}
 

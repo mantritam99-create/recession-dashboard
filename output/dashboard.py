@@ -175,18 +175,19 @@ def build():
 
     P = []
     # ---- data-quality header ----
-    vintages = [i["asof"] for i in fresh["items"] if i["asof"]]
-    vrange = f'{min(vintages)} &rarr; {max(vintages)}' if vintages else "n/a"
+    observations = [i["asof"] for i in fresh["items"] if i["asof"]]
+    observation_range = (f'{min(observations)} &rarr; {max(observations)}'
+                         if observations else "n/a")
     stale_chip = (f'<span class="chip red">{len(fresh["stale"])} stale</span>'
                   if fresh["stale"] else '<span class="chip green">0 stale</span>')
     P.append(f'''<div class="topbar">
       <div><b>US Recession / Bubble-Risk Monitor</b>
         <span class="muted small">&middot; {datetime.datetime.now():%Y-%m-%d %H:%M} &middot;
-        {"FRED live" if has_fred() else "FRED MISSING"}</span></div>
+        {"FRED live" if has_fred() else "FRED key missing"}</span></div>
       <div class="qual">
         <span class="chip">{fresh["n_series_live"]} live &middot; {fresh["n_manual"]} manual</span>
         {stale_chip}
-        <span class="chip">vintages {vrange}</span>
+        <span class="chip">observations {observation_range}</span>
       </div></div>''')
 
     # ---- 2a: 4-KPI decision strip (the headline) ----
@@ -202,8 +203,9 @@ def build():
         (manual AI-layer by calm/stress anchors) &rarr; weighted composite
         ({" / ".join(f'{b.replace("_","-")} {w:.0%}' for b, w in CFG["weights"].items())})
         &rarr; breadth-adjusted into conviction. The AI-bubble layer sits in a separate overlay (not the
-        calibrated score). Bands recalibrated on 1997&ndash;2021 by model/backtest.py &mdash; read the regime
-        + trip-wires, not the bare number.</div>
+        calibrated score). The 1997&ndash;2021 backtest is date-causal and applies conservative release
+        lags, but uses latest-vintage values and is <b>not vintage-exact</b>. Read the regime + trip-wires,
+        not the bare number.</div>
       </details>
     </div>''')
 
@@ -260,7 +262,8 @@ def build():
     P.append(_table(rows, deltas, sparks))
 
     P.append('<footer>Disciplined risk gauge, not a prediction. Stress = historical percentile (live) or '
-             'calm/stress anchor (manual). Bands from model/backtest.py. Use the trip-wire gauges, not valuation alone, '
+             'calm/stress anchor (manual). Backtest is revision-adjusted/date-causal, not vintage-exact. '
+             'Use the trip-wire gauges, not valuation alone, '
              'as the action signal. Rebuilt daily via GitHub Actions.</footer>')
 
     html = (_HEAD + "<style>" + _CSS + "</style></head><body><div class='wrap'>"
@@ -507,7 +510,7 @@ def _table(rows, deltas, sparks):
             f'<div class="famfilter">{chips}</div>'
             f'<div class="tblwrap"><table id="evtbl"><thead><tr><th>Indicator</th><th>Family</th><th>Current</th>'
             f'<th data-sort="stress">Stress &#8645;</th><th>18m</th><th data-sort="delta">3m&Delta; &#8645;</th>'
-            f'<th>Vintage</th><th>Src</th></tr></thead><tbody>')
+            f'<th>Observed</th><th>Src</th></tr></thead><tbody>')
     body = ""
     for r in sorted(rows, key=lambda r: (not r["ok"], -(r["score"] or 0))):
         if not r["ok"]: continue

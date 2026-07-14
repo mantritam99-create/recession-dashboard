@@ -45,15 +45,15 @@ def cape_history() -> pd.Series | None:
         return cache.get_series(key, 1e9)
 
 
-def buffett_history() -> pd.Series | None:
+def buffett_history(allow_stale: bool = False) -> pd.Series | None:
     """Buffett Indicator = corporate equities / GDP, %, quarterly. Needs FRED key.
 
     FRED discontinued the Wilshire 5000 series, so we use NCBEILQ027S (Nonfinancial
     Corporate Business; Corporate Equities; Liability, $M) as the market-value
     numerator — the standard replacement, with history back to 1945.
     """
-    eq = fetch_fred.series("NCBEILQ027S")    # market value of equities, $Millions, quarterly
-    gdp = fetch_fred.series("GDP")           # nominal GDP, $Billions, quarterly
+    eq = fetch_fred.series("NCBEILQ027S", allow_stale=allow_stale)
+    gdp = fetch_fred.series("GDP", allow_stale=allow_stale)
     if eq is None or gdp is None:
         return None
     df = pd.concat([eq, gdp], axis=1).dropna()
