@@ -59,7 +59,8 @@ def build_export() -> dict:
     returns = rs.build_returns()
     tagged = rs.attach_regime(returns)
     corrs = rs.correlation_matrices(tagged)
-    return {
+    bundle = rs.phase2_bundle(returns)
+    sheets = {
         "regime_study_master": _master_long(tagged),
         "regime_study_corr_full": corrs["full_period"],
         "regime_study_corr_recession": corrs["recession"],
@@ -67,6 +68,11 @@ def build_export() -> dict:
         "regime_study_playbook": rs.regime_playbook(tagged),
         "regime_study_diagnostics": rs.diagnostic_snapshot(),
     }
+    # Phase 2: episode-level significance, common-window check, sub-type playbook +
+    # sensitivity -- see model/regime_study.py's PHASE 2 section for the methodology
+    # and docs/RECESSION_EPISODES.md for the category sourcing.
+    sheets.update({f"regime_study_p2_{name}": df for name, df in bundle.items()})
+    return sheets
 
 
 _INDEXED = {"regime_study_corr_full", "regime_study_corr_recession", "regime_study_corr_expansion"}

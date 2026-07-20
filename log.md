@@ -21,8 +21,22 @@ record of how your own signal evolved — the most valuable artifact here.
   anchors, staleness-flagged) into the composite -> now 21 indicators.
 - [x] **Momentum engine** — per-indicator 3m stress deltas + composite trajectory
   (`scoring.trend / composite_history / indicator_deltas`). "How the world is moving."
+- [x] **Cross-asset regime study** (`model/regime_study.py`, separate cadence from the live
+  dashboard) — equities/gold/silver/copper/oil vs NBER recession/expansion, 1926/27-2025.
+  Phase 1: correlation heatmaps, regime playbook, gold/silver + gold/copper diagnostics.
+  Phase 2: episode-level inference (recession years cluster into ~16 episodes, not
+  independent draws), Pearson/Spearman with Fisher-z + block-bootstrap CIs, joint
+  Benjamini-Hochberg FDR correction, min-n=5 gating, recession sub-typing by cause
+  (`docs/RECESSION_EPISODES.md`) with a boundary-case sensitivity check. Finding: the
+  naive "oil +15.3% in recessions" headline doesn't survive episode-level testing
+  (p=0.51); what does (q<0.05 after FDR): equities compound far more in expansion
+  episodes than recession episodes, and copper is genuinely weaker in recessions.
+  Report: `output/regime_study.html`. Silver is derived (no direct source survives
+  USGS/Macrotrends bot-blocking) and anchor-checked across three eras incl. pre-1968.
 - [ ] Optional next — alerts/scheduling on threshold cross; AAII auto-scrape;
-  accumulate manual history quarterly to switch it from anchors to true percentile scoring
+  accumulate manual history quarterly to switch it from anchors to true percentile scoring;
+  rolling/era-split correlation for the regime study (pre/post-1971, pre/post-2008 —
+  flagged as open in output/regime_study.html but not built)
 
 ---
 
